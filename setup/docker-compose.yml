@@ -1,0 +1,71 @@
+# Hermes Agent — sandboxed container deployment
+# Target: Windows + Docker Desktop (WSL2 backend)
+#
+# Design notes:
+#  - hermes-data is a NATIVE docker volume, not a bind mount into C:\Users\...
+#    Bind mounts cross the WSL2 VM boundary (9p/virtiofs) and can corrupt
+#    Hermes' SQLite WAL databases. This is called out in the Nous docs.
+#  - No host folders are mounted by default. The agent cannot see your user
+#    profile, ~/.azure, ~/.splunk, SSH keys, or browser profiles. To give it a
+#    working folder, uncomment the line under `volumes:` and point it at a
+#    dedicated directory.
+#  - Ports bind to 127.0.0.1 only. Never expose 8642/9119 to 0.0.0.0.
+#  - No host env vars are forwarded. Credentials live in the volume's .env.
+
+services:
+  hermes:
+    image: nousresearch/hermes-agent:latest
+    container_name: hermes
+    restart: unless-stopped
+    command: gateway run
+
+    ports:
+      - "127.0.0.1:8642:8642"   # gateway API
+      - "127.0.0.1:9119:9119"   # web dashboard
+
+    volumes:
+      - hermes-data:/opt/data
+      # Optional working folder, read-only. Host path on the left, container
+      # path on the right. Use forward slashes; backslashes escape in YAML.
+      # - C:/path/to/your/workspace:/workspace:ro
+
+    environment:
+      - HERMES_DASHBOARD=1
+      # Local model endpoint requires a non-empty key even though it is unused.
+      - OPENAI_API_KEY=local-no-key-needed
+
+    # Lets the container reach Ollama / LM Studio running on Windows.
+    # Required on Docker Desktop for host.docker.internal to resolve.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "2.0"
+
+    # Defence in depth: no new privileges, and a read-only root filesystem
+    # with writable tmp. /opt/data stays writable via the volume above.
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  hermes-data:
+
+# ---------------------------------------------------------------------------
+# Giving Hermes a working folder
+#
+# Create a dedicated folder first, then uncomment the volume line above and
+# point it there. For example:
+#
+#   mkdir C:\work\hermes-work
+#
+#   volumes:
+#     - hermes-data:/opt/data
+#     - C:/work/hermes-work:/workspace:ro
+#
+# Keep it dedicated and keep it read-only where the task allows. Mounting your
+# whole user profile, or anything containing credentials, removes the reason
+# for running the agent in a container at all.
+# ---------------------------------------------------------------------------

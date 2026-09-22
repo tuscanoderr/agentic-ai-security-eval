@@ -1,0 +1,14 @@
+# Secrets. Never commit gateway tokens or API keys.
+.env
+*.env
+setup/.env
+
+# Local agent state
+hermes-data/
+*.db
+*.sqlite
+
+# OS noise
+Thumbs.db
+desktop.ini
+.DS_Store

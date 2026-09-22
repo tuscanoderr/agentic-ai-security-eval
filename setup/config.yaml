@@ -1,0 +1,17 @@
+model: ornith-1.0-9b
+base_url: http://host.docker.internal:1234/v1
+
+skills:
+  write_approval: true
+  guard_agent_created: true
+
+memory:
+  write_approval: true
+
+agent:
+  disabled_toolsets: []
+
+file_read_max_chars: 100000
+
+terminal:
+  backend: local
